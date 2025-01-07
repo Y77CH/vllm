@@ -105,6 +105,11 @@ class FlashAttentionMetadata(AttentionMetadata):
     # seq_lens stored as a tensor.
     seq_lens_tensor: Optional[torch.Tensor]
 
+    # (batch_size,). The orig sequence length per sequence.
+    orig_seq_lens: Optional[List[int]]
+    # orig_seq_lens stored as a tensor.
+    orig_seq_lens_tensor: Optional[torch.Tensor]
+
     # NOTE(sang): Definition of context_len, query_len, and seq_len.
     # |---------- N-1 iteration --------|
     # |---------------- N iteration ---------------------|
@@ -212,6 +217,10 @@ class FlashAttentionMetadata(AttentionMetadata):
                     self.seq_lens[:self.num_prefills])
         seq_lens_tensor = (None if self.seq_lens_tensor is None else
                            self.seq_lens_tensor[:self.num_prefills])
+        orig_seq_lens = (None if self.orig_seq_lens is None else
+                         self.orig_seq_lens[:self.num_prefills])
+        orig_seq_lens_tensor = (None if self.orig_seq_lens_tensor is None else
+                                self.orig_seq_lens_tensor[:self.num_prefills])
         seq_start_loc = (None if self.seq_start_loc is None else
                          self.seq_start_loc[:self.num_prefills + 1])
         context_lens_tensor = (None if self.context_lens_tensor is None else
@@ -228,6 +237,8 @@ class FlashAttentionMetadata(AttentionMetadata):
             multi_modal_placeholder_index_maps,
             seq_lens=seq_lens,
             seq_lens_tensor=seq_lens_tensor,
+            orig_seq_lens=orig_seq_lens,
+            orig_seq_lens_tensor=orig_seq_lens_tensor,
             max_query_len=self.max_query_len,
             max_prefill_seq_len=self.max_prefill_seq_len,
             max_decode_query_len=0,
@@ -261,6 +272,8 @@ class FlashAttentionMetadata(AttentionMetadata):
                         self.slot_mapping[self.num_prefill_tokens:])
         seq_lens_tensor = (None if self.seq_lens_tensor is None else
                            self.seq_lens_tensor[self.num_prefills:])
+        orig_seq_lens_tensor = (None if self.orig_seq_lens_tensor is None else
+                                self.orig_seq_lens_tensor[self.num_prefills:])
         block_tables = (None if self.block_tables is None else
                         self.block_tables[self.num_prefills:])
 
@@ -272,6 +285,8 @@ class FlashAttentionMetadata(AttentionMetadata):
             multi_modal_placeholder_index_maps=None,
             seq_lens=None,
             seq_lens_tensor=seq_lens_tensor,
+            orig_seq_lens=None,
+            orig_seq_lens_tensor=orig_seq_lens_tensor,
             max_decode_query_len=self.max_decode_query_len,
             max_query_len=self.max_query_len,
             max_prefill_seq_len=0,
@@ -374,6 +389,7 @@ class FlashAttentionMetadataBuilder(
         AttentionMetadataBuilder[FlashAttentionMetadata]):
 
     def __init__(self, input_builder: "ModelInputForGPUBuilder"):
+        self.orig_seq_lens: List[int] = []
         self.slot_mapping: List[int] = []
         self.prefill_seq_lens: List[int] = []
         self.context_lens: List[int] = []
@@ -424,6 +440,7 @@ class FlashAttentionMetadataBuilder(
             else:
                 self.num_decode_tokens += query_len
                 self.curr_seq_lens.append(curr_seq_len)
+            self.orig_seq_lens.append(seq_len)
 
             # Compute block table.
             # TODO(sang): Combine chunked prefill and prefix caching by
@@ -449,7 +466,7 @@ class FlashAttentionMetadataBuilder(
                                                        context_len,
                                                        self.sliding_window)
             compute_slot_mapping(is_profile_run, self.slot_mapping, seq_id,
-                                 seq_len, context_len, start_idx,
+                                 curr_seq_len, context_len, start_idx,
                                  self.block_size, inter_data.block_tables)
 
     def _get_graph_runner_block_tables(
@@ -532,6 +549,8 @@ class FlashAttentionMetadataBuilder(
                                                device, self.runner.pin_memory)
         seq_lens_tensor = async_tensor_h2d(seq_lens, torch.int, device,
                                            self.runner.pin_memory)
+        orig_seq_lens_tensor = async_tensor_h2d(self.orig_seq_lens, torch.int,
+                                                device, self.runner.pin_memory)
         slot_mapping_tensor = async_tensor_h2d(self.slot_mapping, torch.long,
                                                device, self.runner.pin_memory)
         query_start_loc_tensor = async_tensor_h2d(query_start_loc, torch.int32,
@@ -551,8 +570,10 @@ class FlashAttentionMetadataBuilder(
             num_prefill_tokens=self.num_prefill_tokens,
             num_decode_tokens=num_decode_tokens,
             seq_lens=seq_lens,
+            orig_seq_lens=self.orig_seq_lens,
             multi_modal_placeholder_index_maps=placeholder_index_maps,
             seq_lens_tensor=seq_lens_tensor,
+            orig_seq_lens_tensor=orig_seq_lens_tensor,
             max_query_len=max_query_len,
             max_decode_query_len=max_decode_query_len,
             max_prefill_seq_len=max_prefill_seq_len,
