@@ -29,7 +29,7 @@ from vllm.vllm_flash_attn import (flash_attn_varlen_func,
 
 class FlashAttentionBackend(AttentionBackend):
 
-    accept_output_buffer: bool = True
+    accept_output_buffer: bool = False
 
     @staticmethod
     def get_supported_head_sizes() -> List[int]:

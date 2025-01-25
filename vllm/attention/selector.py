@@ -83,6 +83,7 @@ def get_attn_backend(
     block_size: int,
     is_attention_free: bool,
     is_blocksparse: bool = False,
+    need_dual_chunk_attention=None
 ) -> Type[AttentionBackend]:
     """Selects which attention backend to use and lazily imports it."""
     # Accessing envs.* behind an @lru_cache decorator can cause the wrong
@@ -97,6 +98,7 @@ def get_attn_backend(
         is_attention_free=is_attention_free,
         is_blocksparse=is_blocksparse,
         use_v1=envs.VLLM_USE_V1,
+        need_dual_chunk_attention=need_dual_chunk_attention
     )
 
 
@@ -109,7 +111,12 @@ def _cached_get_attn_backend(
     is_attention_free: bool,
     is_blocksparse: bool = False,
     use_v1: bool = False,
+    need_dual_chunk_attention=None
 ) -> Type[AttentionBackend]:
+    if need_dual_chunk_attention:
+        logger.info("Using Dual Chunk Attention backend.")
+        from vllm.attention.backends.dual_chunk_flash_attn import DualChunkFlashAttentionBackend
+        return DualChunkFlashAttentionBackend
     if is_blocksparse:
         logger.info("Using BlocksparseFlashAttention backend.")
         from vllm.attention.backends.blocksparse_attn import (

@@ -56,7 +56,8 @@ class CacheEngine:
                                              model_config.dtype,
                                              cache_config.cache_dtype,
                                              self.block_size,
-                                             model_config.is_attention_free)
+                                             model_config.is_attention_free,
+                                             need_dual_chunk_attention=getattr(model_config.hf_config, "dual_chunk_attention_config", None) is not None)
 
         # Initialize the cache.
         self.gpu_cache = self._allocate_kv_cache(

@@ -94,7 +94,8 @@ class Attention(nn.Module):
         dtype = torch.get_default_dtype()
         attn_backend = get_attn_backend(head_size, dtype, kv_cache_dtype,
                                         block_size, is_attention_free,
-                                        blocksparse_params is not None)
+                                        blocksparse_params is not None,
+                                        need_dual_chunk_attention=dual_chunk_attention_config is not None)
         impl_cls = attn_backend.get_impl_cls()
         self.impl = impl_cls(
             num_heads, head_size, scale, num_kv_heads, alibi_slopes,

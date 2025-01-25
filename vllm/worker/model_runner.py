@@ -1058,6 +1058,7 @@ class GPUModelRunnerBase(ModelRunnerBase[TModelInputForGPU]):
             self.kv_cache_dtype,
             self.block_size,
             self.model_config.is_attention_free,
+            need_dual_chunk_attention=getattr(self.model_config.hf_config, "dual_chunk_attention_config", None) is not None
         ) if needs_attn_backend else None
         if self.attn_backend:
             self.attn_state = self.attn_backend.get_state_cls()(
