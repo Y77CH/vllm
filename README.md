@@ -15,6 +15,10 @@ Easy, fast, and cheap LLM serving for everyone
 
 ---
 
+This branch, developed by the Qwen Team, incorporates sparse attention and length extrapolation features. For detailed usage instructions, please refer to the modelcards for [Qwen2.5-7B-Instruct-1M](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-1M) and [Qwen2.5-14B-Instruct-1M](https://huggingface.co/Qwen/Qwen2.5-14B-Instruct-1M).
+
+---
+
 The first vLLM meetup in 2025 is happening on January 22nd, Wednesday, with Google Cloud in San Francisco! We will talk about vLLM's performant V1 architecture, Q1 roadmap, Google Cloud's innovation around vLLM: networking, Cloud Run, Vertex, and TPU! [Register Now](https://lu.ma/zep56hui)
 
 ---
