@@ -337,6 +337,8 @@ class ModelConfig:
             sliding_window_len=self.get_hf_config_sliding_window(),
             spec_target_max_model_len=spec_target_max_model_len,
             encoder_config=self.encoder_config)
+        self.hf_config.max_position_embeddings = self.max_model_len
+        self.hf_text_config.max_position_embeddings = self.max_model_len
         self.served_model_name = get_served_model_name(model,
                                                        served_model_name)
         self.multimodal_config = self._init_multimodal_config(
