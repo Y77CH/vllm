@@ -17,6 +17,105 @@ Easy, fast, and cheap LLM serving for everyone
 
 This branch, developed by the Qwen Team, incorporates sparse attention and length extrapolation features. For detailed usage instructions, please refer to the modelcards for [Qwen2.5-7B-Instruct-1M](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-1M) and [Qwen2.5-14B-Instruct-1M](https://huggingface.co/Qwen/Qwen2.5-14B-Instruct-1M).
 
+## Instructions
+
+### Ensure your system meets the following requirements:
+
+* CUDA Version: 12.1 or 12.3
+* Python Version: >=3.9 and <=3.12
+
+### Install Dependencies
+
+For now, you need to clone the vLLM repository from our custom branch and install it manually. We are working on getting our branch merged into the main vLLM project.
+
+```
+git clone -b dev/dual-chunk-attn git@github.com:Y77CH/vllm.git
+cd vllm
+pip install -e . -v
+```
+
+### Launch vLLM
+
+#### Offline Inference
+
+```python
+from transformers import AutoTokenizer
+from vllm import LLM, SamplingParams
+
+# Initialize the tokenizer
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-7B-Instruct-1M")
+
+# Pass the default decoding hyperparameters of Qwen2.5-7B-Instruct
+# max_tokens is for the maximum length for generation.
+sampling_params = SamplingParams(temperature=0.7, top_p=0.8, repetition_penalty=1.05, max_tokens=512)
+
+# Input the model name or path. See below for parameter explanation (after the example of openai-like server).
+llm = LLM(model="Qwen/Qwen2.5-7B-Instruct-1M",
+    tensor_parallel_size=4,
+    max_model_len=1010000,
+    enable_chunked_prefill=True,
+    max_num_batched_tokens=131072,
+    enforce_eager=True,
+    # quantization="fp8", # Enabling FP8 quantization for model weights can reduce memory usage.
+)
+
+# Prepare your prompts
+prompt = "Tell me something about large language models."
+messages = [
+    {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
+    {"role": "user", "content": prompt}
+]
+text = tokenizer.apply_chat_template(
+    messages,
+    tokenize=False,
+    add_generation_prompt=True
+)
+
+# generate outputs
+outputs = llm.generate([text], sampling_params)
+
+# Print the outputs.
+for output in outputs:
+    prompt = output.prompt
+    generated_text = output.outputs[0].text
+    print(f"Prompt: {prompt!r}, Generated text: {generated_text!r}")
+```
+
+#### Example of Openai-like Server
+
+```
+vllm serve Qwen/Qwen2.5-7B-Instruct-1M \
+  --tensor-parallel-size 4 \
+  --max-model-len 1010000 \
+  --enable-chunked-prefill --max-num-batched-tokens 131072 \
+  --enforce-eager \
+  --max-num-seqs 1
+
+# --quantization fp8  # Enabling FP8 quantization for model weights can reduce memory usage.
+```
+
+Then you can use curl or python to interact with the deployed model.
+
+Parameter Explanations:
+
+```
+--tensor-parallel-size
+
+Set to the number of GPUs you are using. Max 4 GPUs for the 7B model, and 8 GPUs for the 14B model.
+--max-model-len
+
+Defines the maximum input sequence length. Reduce this value if you encounter Out of Memory issues.
+--max-num-batched-tokens
+
+Sets the chunk size in Chunked Prefill. A smaller value reduces activation memory usage but may slow down inference.
+Recommend 131072 for optimal performance.
+--max-num-seqs
+
+Limits concurrent sequences processed.
+```
+
+You can also refer to our [Documentation](https://qwen.readthedocs.io/en/latest/deployment/vllm.html) for usage of vLLM.
+
 ---
 
 The first vLLM meetup in 2025 is happening on January 22nd, Wednesday, with Google Cloud in San Francisco! We will talk about vLLM's performant V1 architecture, Q1 roadmap, Google Cloud's innovation around vLLM: networking, Cloud Run, Vertex, and TPU! [Register Now](https://lu.ma/zep56hui)
